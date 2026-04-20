@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.cluster import AffinityPropagation
-import sys
 
 
 class APCluster:
@@ -18,8 +17,10 @@ class APCluster:
         return:
         {
             res = { 0 : {  "name_devices" : [device A , device B , ...],
-                           "nums_cloud" : 2,
-                           "mean_score" : (0.5,0.3) }
+                           "strength" : ...,
+                           "mean_gflops" : ...,
+                           "mean_bandwidth" : ...,
+                        }
                     1 : ...}
         }
         """
@@ -37,9 +38,7 @@ class APCluster:
         labels = AP.fit_predict(features_scaled)
         labels = labels.astype(int).tolist()
         nums_cluster = len(AP.cluster_centers_indices_)
-        if (self.nums_cloud < nums_cluster):
-            print("Warning! The number of cloud < the number of cluster")
-            sys.exit()
+
 
         # Group devices by cluster
         cluster_map = {}
@@ -52,34 +51,21 @@ class APCluster:
         strength_cl = {}
         mean_gflops_cl = {}
         mean_bandwidth_cl = {}
-        cloud_2_cl = {}
         for label, data in cluster_map.items():
             scores = data["score_devices"]
             sum_gflops_cl, sum_bw_cl = np.sum(scores, axis=0)
             strength_cl[label] = self.alpha * sum_gflops_cl + (1 - self.alpha) * sum_bw_cl
             mean_gflops_cl[label], mean_bandwidth_cl[label] = np.mean(scores, axis=0)
-            cloud_2_cl[label] = 1
 
-        # Match cloud to cluster
-        r = self.nums_cloud - nums_cluster
-        while r > 0:
-            p = 0
-            i = 0
-            for label, strength in strength_cl.items():
-                pressure = strength / cloud_2_cl[label]
-                if pressure > p:
-                    p = pressure
-                    i = label
-            cloud_2_cl[i] += 1
-            r -= 1
 
-            # Build result dict
+        # Build result dict
         result = {}
         for label, data in cluster_map.items():
             result[label] = {
                 "name_devices": data["name_devices"],
-                "nums_cloud": cloud_2_cl[label],
-                "mean_score": (mean_gflops_cl[label], mean_bandwidth_cl[label])
+                "strength" : strength_cl[label],
+                "mean_gflops" : mean_gflops_cl[label],
+                "mean_bandwidth" : mean_bandwidth_cl[label]
             }
         return result
 
@@ -119,28 +105,29 @@ class Clustering:
             if client_id != 0:
                 id_names.append(client_id)
                 features.append(self.extract_device_info(self.data_clients[client_id]['device']))
-        nums_cloud = len(self.lst_devices[2]) - 1
+
         features = np.array(features)
         cluster = APCluster(
             features=features,
             device_names=id_names,
-            nums_cloud=nums_cloud,
         )
 
         res = cluster.run()
 
-        cloud_idx = 1
         for cluster in res.keys():
             for edge_device in res[cluster]["name_devices"]:
                 self.dict_res[edge_device] = cluster
-            for j in range(res[cluster]["nums_cloud"]):
-                self.dict_res[self.lst_devices[2][cloud_idx]] = cluster
-            cloud_idx += 1
+            self.dict_res[cluster] = {
+                "mean_gflops" : res[cluster]["mean_gflops"],
+                "mean_bandwidth" : res[cluster]["mean_bandwidth"],
+                "strength" : res[cluster]["strength"],
+
+            }
         self.dict_res["nums_cluster"] = len(res)
 
         return self.dict_res
 
-#  Example feature matrix (N=5 devices, F=2 features)
+#  Example
 
 # lst_devices = [0, [0, 'Device_A','Device_B','Device_C','Device_D','Device_E'], [0, 'Device_a','Device_b','Device_c','Device_d']]
 # data_clients = {'Device_A': {
