@@ -76,7 +76,6 @@ class APCluster:
             # Build result dict
         result = {}
         for label, data in cluster_map.items():
-            result[label] = {}
             result[label] = {
                 "name_devices": data["name_devices"],
                 "nums_cloud": cloud_2_cl[label],
@@ -137,6 +136,7 @@ class Clustering:
             for j in range(res[cluster]["nums_cloud"]):
                 self.dict_res[self.lst_devices[2][cloud_idx]] = cluster
             cloud_idx += 1
+        self.dict_res["nums_cluster"] = len(res)
 
         return self.dict_res
 
