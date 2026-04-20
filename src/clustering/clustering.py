@@ -3,11 +3,10 @@ from sklearn.cluster import AffinityPropagation
 
 
 class APCluster:
-    def __init__(self, features, device_names, alpha=1, nums_cloud=1):
+    def __init__(self, features, device_names, alpha=1):
         self.features = features
         self.device_names = device_names
         self.alpha = alpha
-        self.nums_cloud = nums_cloud
 
     def Affinity_Propagation(self):
         """
